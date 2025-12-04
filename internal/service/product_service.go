@@ -3,6 +3,7 @@ package service
 import (
 	"cc-helper-backend/internal/models"
 	"cc-helper-backend/internal/repository"
+	"database/sql"
 	"fmt"
 	"regexp"
 	"strings"
@@ -44,6 +45,28 @@ func buildCategoryDisplay(c *models.Category) string {
 		return fmt.Sprintf("%s / %s / %s", c.Category, c.SubCategory, *c.DetailCategory)
 	}
 	return fmt.Sprintf("%s / %s", c.Category, c.SubCategory)
+}
+
+// 👇 helper: generate slug unik
+func (s *ProductService) generateUniqueSlug(kind models.ContentKind, title string) string {
+	base := slugify(title)
+	slug := base
+	i := 2
+
+	for {
+		_, err := s.productRepo.GetBySlug(kind, slug)
+		if err != nil {
+			if err == sql.ErrNoRows {
+				// slug belum dipakai
+				return slug
+			}
+			// error lain → stop, pakai slug sekarang saja
+			return slug
+		}
+		// slug sudah dipakai, coba tambahkan suffix
+		slug = fmt.Sprintf("%s-%d", base, i)
+		i++
+	}
 }
 
 func (s *ProductService) List(kind models.ContentKind, q string, categoryID *int64) ([]*models.Product, error) {
@@ -89,7 +112,6 @@ func (s *ProductService) CreateCategory(kind models.ContentKind, cat, sub, detai
 }
 
 // ==== Create Product / Script ====
-// request di handler akan kirim: categoryID, blocks, isBreaking, breakingTitle
 func (s *ProductService) Create(
 	kind models.ContentKind,
 	title string,
@@ -108,13 +130,14 @@ func (s *ProductService) Create(
 	}
 
 	categoryDisplay := buildCategoryDisplay(cat)
+	slug := s.generateUniqueSlug(kind, title)
 
 	p := &models.Product{
 		Kind:       kind,
-		Slug:       slugify(title),
+		Slug:       slug,
 		Title:      title,
-		CategoryID: categoryID,      // ✅ penting
-		Category:   categoryDisplay, // hanya untuk response
+		CategoryID: categoryID,
+		Category:   categoryDisplay, // string gabungan untuk response
 		Blocks:     blocks,
 	}
 

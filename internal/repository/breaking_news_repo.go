@@ -33,6 +33,8 @@ func (r *breakingNewsRepository) Create(b *models.BreakingNews) (int64, error) {
 	return id, nil
 }
 
+// ==== LIST ACTIVE UNTUK TICKER ====
+
 func (r *breakingNewsRepository) ListActive() ([]*models.BreakingNews, error) {
 	rows, err := r.db.Query(`
         SELECT 
@@ -58,8 +60,10 @@ func (r *breakingNewsRepository) ListActive() ([]*models.BreakingNews, error) {
 
 	var result []*models.BreakingNews
 	for rows.Next() {
-		var b models.BreakingNews
-		var p models.Product
+		var (
+			b models.BreakingNews
+			p models.Product
+		)
 		if err := rows.Scan(
 			&b.ID,
 			&b.Kind,
@@ -74,11 +78,15 @@ func (r *breakingNewsRepository) ListActive() ([]*models.BreakingNews, error) {
 		); err != nil {
 			return nil, err
 		}
+
+		b.ProductSlug = p.Slug
 		b.Product = &p
 		result = append(result, &b)
 	}
 	return result, nil
 }
+
+// ==== LIST ALL UNTUK ADMIN ====
 
 func (r *breakingNewsRepository) ListAll() ([]*models.BreakingNews, error) {
 	rows, err := r.db.Query(`
@@ -89,8 +97,12 @@ func (r *breakingNewsRepository) ListAll() ([]*models.BreakingNews, error) {
             b.title,
             b.is_active,
             b.created_at,
-            b.updated_at
+            b.updated_at,
+            p.slug,
+            p.title,
+            p.kind
         FROM breaking_news b
+        JOIN products p ON p.id = b.product_id
         ORDER BY b.created_at DESC
     `)
 	if err != nil {
@@ -100,7 +112,10 @@ func (r *breakingNewsRepository) ListAll() ([]*models.BreakingNews, error) {
 
 	var result []*models.BreakingNews
 	for rows.Next() {
-		var b models.BreakingNews
+		var (
+			b models.BreakingNews
+			p models.Product
+		)
 		if err := rows.Scan(
 			&b.ID,
 			&b.Kind,
@@ -109,9 +124,14 @@ func (r *breakingNewsRepository) ListAll() ([]*models.BreakingNews, error) {
 			&b.IsActive,
 			&b.CreatedAt,
 			&b.UpdatedAt,
+			&p.Slug,
+			&p.Title,
+			&p.Kind,
 		); err != nil {
 			return nil, err
 		}
+		b.ProductSlug = p.Slug
+		b.Product = &p
 		result = append(result, &b)
 	}
 	return result, nil

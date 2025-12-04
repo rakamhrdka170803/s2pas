@@ -5,6 +5,7 @@ export default function AdminBreakingNewsPage() {
   const [list, setList] = useState([]);
   const [loading, setLoading] = useState(false);
   const [msg, setMsg] = useState("");
+  const [confirmItem, setConfirmItem] = useState(null);
 
   function load() {
     setLoading(true);
@@ -24,13 +25,13 @@ export default function AdminBreakingNewsPage() {
     load();
   }, []);
 
-  async function handleDelete(id) {
-    if (!window.confirm("Hapus breaking news ini? Produk tidak akan terhapus.")) {
-      return;
-    }
+  async function handleConfirmDelete(id) {
     try {
       await deleteBreakingNews(id);
+      setConfirmItem(null);
       load();
+      // beritahu ticker utk refresh tanpa reload
+      window.dispatchEvent(new Event("breaking-news-updated"));
     } catch (err) {
       alert("Gagal delete: " + err.message);
     }
@@ -66,14 +67,12 @@ export default function AdminBreakingNewsPage() {
                   <td className="border px-2 py-1">{b.title}</td>
                   <td className="border px-2 py-1">{b.kind}</td>
                   <td className="border px-2 py-1">
-                    {b.product && b.product.title
-                      ? b.product.title
-                      : "-"}
+                    {b.product && b.product.title ? b.product.title : "-"}
                   </td>
                   <td className="border px-2 py-1">
                     <button
-                      onClick={() => handleDelete(b.id)}
-                      className="text-red-600 hover:underline"
+                      onClick={() => setConfirmItem(b)}
+                      className="text-red-600 hover:underline text-[11px]"
                     >
                       Hapus
                     </button>
@@ -94,6 +93,38 @@ export default function AdminBreakingNewsPage() {
           </table>
         </div>
       </div>
+
+      {/* Modal konfirmasi */}
+      {confirmItem && (
+        <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50">
+          <div className="bg-white rounded-2xl shadow-lg p-4 w-full max-w-sm">
+            <h2 className="text-sm font-semibold mb-2">
+              Hapus Breaking News?
+            </h2>
+            <p className="text-xs text-slate-600 mb-4">
+              Anda akan menghapus:{" "}
+              <span className="font-semibold">
+                "{confirmItem.title}"
+              </span>
+              . Produk aslinya tidak akan terhapus.
+            </p>
+            <div className="flex justify-end gap-2 text-xs">
+              <button
+                onClick={() => setConfirmItem(null)}
+                className="px-3 py-1 rounded border border-slate-300 hover:bg-slate-50"
+              >
+                Batal
+              </button>
+              <button
+                onClick={() => handleConfirmDelete(confirmItem.id)}
+                className="px-3 py-1 rounded bg-red-600 text-white hover:bg-red-700"
+              >
+                Hapus
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

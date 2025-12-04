@@ -1,62 +1,64 @@
-import { useEffect, useState } from "react";
-import { fetchActiveBreakingNews } from "../api";
+// src/components/BreakingNewsTicker.jsx
+import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { fetchActiveBreakingNews } from "../api";
 
 export default function BreakingNewsTicker() {
   const [items, setItems] = useState([]);
-  const [error, setError] = useState("");
   const navigate = useNavigate();
 
   useEffect(() => {
-    fetchActiveBreakingNews()
-      .then((data) => {
-        setItems(data || []);
-        setError("");
-      })
-      .catch(() => {
-        setItems([]);
-        setError("Failed to load breaking news");
-      });
+    const load = () => {
+      fetchActiveBreakingNews()
+        .then((data) => setItems(data || []))
+        .catch(() => setItems([]));
+    };
+
+    load();
+
+    // dengarkan event global dari admin
+    const handler = () => load();
+    window.addEventListener("breaking-news-updated", handler);
+
+    return () => window.removeEventListener("breaking-news-updated", handler);
   }, []);
 
-  if (!items.length) return null; // tidak ada banner kalau kosong
+  const loopItems = useMemo(() => {
+    if (!items || items.length === 0) return [];
+    // gandakan supaya animasi kelihatan endless
+    return [...items, ...items];
+  }, [items]);
 
-  function onClickItem(item) {
-    // asumsi API kirim product info di item.product (slug & kind)
-    if (item.product && item.product.slug) {
-      const kind = item.kind === "script" ? "script" : "product";
-      navigate(kind === "product"
-        ? `/product/${item.product.slug}`
-        : `/script/${item.product.slug}`);
-    }
+  if (loopItems.length === 0) return null;
+
+  function handleClick(bn) {
+    const slug = bn.product_slug || bn.productSlug || (bn.product && bn.product.slug);
+    if (!slug) return;
+
+    const kind = bn.kind || (bn.product && bn.product.kind) || "product";
+    const path = kind === "script" ? `/script/${slug}` : `/product/${slug}`;
+    navigate(path);
   }
 
   return (
-    <div className="h-8 bg-red-700 text-white text-xs flex items-center px-4 overflow-hidden">
-      <div className="font-bold mr-3 uppercase tracking-[0.2em]">
-        Breaking News
+    <div className="bg-red-700 text-white h-8 flex items-center text-xs">
+      <div className="px-3 font-semibold tracking-[0.2em] uppercase">
+        BREAKING NEWS
       </div>
-      <div className="flex-1 whitespace-nowrap overflow-hidden">
-        <div className="animate-[marquee_20s_linear_infinite] flex gap-6">
-          {items.map((item) => (
+      <div className="flex-1 overflow-hidden">
+        <div className="animate-marquee flex items-center gap-4">
+          {loopItems.map((bn, idx) => (
             <button
-              key={item.id}
+              key={`${bn.id}-${idx}`}
               type="button"
-              onClick={() => onClickItem(item)}
-              className="hover:underline"
+              onClick={() => handleClick(bn)}
+              className="mx-2 px-3 py-0.5 rounded-full bg-red-600/80 border border-red-300 text-[11px] shadow-sm whitespace-nowrap hover:bg-red-500 hover:border-white transition cursor-pointer"
             >
-              {item.title}
+              {bn.title}
             </button>
           ))}
         </div>
       </div>
-
-      <style>{`
-        @keyframes marquee {
-          0% { transform: translateX(0); }
-          100% { transform: translateX(-50%); }
-        }
-      `}</style>
     </div>
   );
 }

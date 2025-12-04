@@ -1,5 +1,35 @@
+// src/pages/AdminEditor.jsx
 import { useEffect, useMemo, useState } from "react";
 import { createContent, fetchCategories, uploadImage } from "../api";
+import ReactQuill from "react-quill";
+import "react-quill/dist/quill.snow.css";
+
+/** Konfigurasi toolbar & format Quill */
+const quillModules = {
+  toolbar: [
+    [{ header: [1, 2, 3, false] }],
+    ["bold", "italic", "underline", "strike"],
+    [{ list: "ordered" }, { list: "bullet" }],
+    [{ align: [] }],
+    [{ color: [] }, { background: [] }],
+    ["link"],
+    ["clean"],
+  ],
+};
+
+const quillFormats = [
+  "header",
+  "bold",
+  "italic",
+  "underline",
+  "strike",
+  "list",
+  "bullet",
+  "align",
+  "color",
+  "background",
+  "link",
+];
 
 export default function AdminEditor({ user }) {
   const [kind, setKind] = useState("product");
@@ -102,7 +132,7 @@ export default function AdminEditor({ user }) {
         if (b.type === "text") {
           return {
             type: "text",
-            text: b.text || "",
+            text: b.text || "", // HTML dari ReactQuill
           };
         }
         return {
@@ -119,6 +149,11 @@ export default function AdminEditor({ user }) {
         isBreaking,
         breakingTitle,
       });
+
+      // 🔔 beri tahu ticker kalau ada breaking baru
+      if (isBreaking) {
+        window.dispatchEvent(new Event("breaking-news-updated"));
+      }
 
       setMessage(
         `Berhasil membuat ${kind} dengan slug: ${res.slug || "(lihat backend)"}`
@@ -267,13 +302,13 @@ export default function AdminEditor({ user }) {
                 </div>
 
                 {b.type === "text" ? (
-                  <textarea
-                    className="border rounded px-2 py-1 text-sm w-full min-h-[80px]"
+                  <ReactQuill
+                    theme="snow"
                     value={b.text || ""}
-                    onChange={(e) =>
-                      updateBlock(idx, { text: e.target.value })
-                    }
-                    placeholder="Isi script / deskripsi di sini..."
+                    onChange={(value) => updateBlock(idx, { text: value })}
+                    modules={quillModules}
+                    formats={quillFormats}
+                    className="bg-white"
                   />
                 ) : (
                   <div className="space-y-2">

@@ -12,5 +12,6 @@ type BreakingNews struct {
 	UpdatedAt time.Time   `json:"updated_at"`
 
 	// Optional join ke product untuk response
-	Product *Product `json:"product,omitempty"`
+	ProductSlug string   `json:"product_slug,omitempty"`
+	Product     *Product `json:"product,omitempty"`
 }
