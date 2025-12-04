@@ -24,12 +24,17 @@ const (
 )
 
 type Product struct {
-	ID        int64          `json:"id"`
-	Kind      ContentKind    `json:"kind"` // "product" atau "script"
-	Slug      string         `json:"slug"` // bjb-t-samsat
-	Title     string         `json:"title"`
-	Category  string         `json:"category"`
-	Blocks    []ContentBlock `json:"blocks"`
-	CreatedAt time.Time      `json:"created_at"`
-	UpdatedAt time.Time      `json:"updated_at"`
+	ID         int64          `json:"id"`
+	Kind       ContentKind    `json:"kind"`
+	Slug       string         `json:"slug"`
+	Title      string         `json:"title"`
+	CategoryID int64          `json:"categoryId"` // ✅ WAJIB
+	Blocks     []ContentBlock `json:"blocks"`
+	CreatedAt  time.Time      `json:"created_at"`
+	UpdatedAt  time.Time      `json:"updated_at"`
+
+	// hasil JOIN dari categories (read only)
+	Category       string  `json:"category,omitempty"`
+	SubCategory    string  `json:"subCategory,omitempty"`
+	DetailCategory *string `json:"detailCategory,omitempty"`
 }

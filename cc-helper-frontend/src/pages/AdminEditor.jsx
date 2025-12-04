@@ -1,21 +1,43 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { createContent, fetchCategories, uploadImage } from "../api";
-import CategoryChips from "../components/CategoryChips";
 
 export default function AdminEditor({ user }) {
   const [kind, setKind] = useState("product");
   const [categories, setCategories] = useState([]);
-  const [category, setCategory] = useState("");
+  const [categoryId, setCategoryId] = useState("");
   const [title, setTitle] = useState("");
   const [blocks, setBlocks] = useState([]);
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState("");
 
+  const [isBreaking, setIsBreaking] = useState(false);
+  const [breakingTitle, setBreakingTitle] = useState("");
+
   useEffect(() => {
     fetchCategories(kind)
-      .then(setCategories)
-      .catch(() => setCategories([]));
+      .then((data) => {
+        setCategories(data || []);
+        setCategoryId("");
+      })
+      .catch(() => {
+        setCategories([]);
+        setCategoryId("");
+      });
   }, [kind]);
+
+  const categoryOptions = useMemo(() => {
+    return categories.map((c) => {
+      const detail = c.detail_category || c.detailCategory || "";
+      const sub = c.sub_category || c.subCategory || "";
+      const label = detail
+        ? `${c.category} / ${sub} / ${detail}`
+        : `${c.category} / ${sub}`;
+      return {
+        id: c.id,
+        label,
+      };
+    });
+  }, [categories]);
 
   if (!user || user.role !== "admin") {
     return (
@@ -26,10 +48,7 @@ export default function AdminEditor({ user }) {
   }
 
   function addTextBlock() {
-    setBlocks((prev) => [
-      ...prev,
-      { type: "text", text: "" },
-    ]);
+    setBlocks((prev) => [...prev, { type: "text", text: "" }]);
   }
 
   function addImageBlock() {
@@ -61,6 +80,22 @@ export default function AdminEditor({ user }) {
   async function handleSubmit(e) {
     e.preventDefault();
     setMessage("");
+
+    if (!categoryId) {
+      setMessage("Kategori wajib dipilih.");
+      return;
+    }
+
+    if (!title.trim()) {
+      setMessage("Judul wajib diisi.");
+      return;
+    }
+
+    if (blocks.length === 0) {
+      setMessage("Minimal 1 blok konten (text / image).");
+      return;
+    }
+
     setSaving(true);
     try {
       const payloadBlocks = blocks.map((b) => {
@@ -78,17 +113,21 @@ export default function AdminEditor({ user }) {
       });
 
       const res = await createContent(kind, {
-        title,
-        category,
+        title: title.trim(),
+        categoryId: Number(categoryId),
         blocks: payloadBlocks,
+        isBreaking,
+        breakingTitle,
       });
 
       setMessage(
         `Berhasil membuat ${kind} dengan slug: ${res.slug || "(lihat backend)"}`
       );
-      // reset ringan
       setTitle("");
       setBlocks([]);
+      setIsBreaking(false);
+      setBreakingTitle("");
+      setCategoryId("");
     } catch (err) {
       setMessage("Gagal create: " + err.message);
     } finally {
@@ -98,13 +137,19 @@ export default function AdminEditor({ user }) {
 
   return (
     <div className="max-w-3xl">
-      <h1 className="text-xl font-semibold mb-4">Admin: Create Product / Script</h1>
+      <h1 className="text-xl font-semibold mb-4">
+        Admin: Create Product / Script
+      </h1>
       {message && (
         <div className="mb-3 text-sm bg-slate-100 border border-slate-300 rounded px-3 py-2">
           {message}
         </div>
       )}
-      <form onSubmit={handleSubmit} className="space-y-4 bg-white rounded-2xl shadow p-4">
+      <form
+        onSubmit={handleSubmit}
+        className="space-y-4 bg-white rounded-2xl shadow p-4"
+      >
+        {/* Jenis */}
         <div className="flex gap-4 items-center">
           <label className="text-sm font-medium">Jenis</label>
           <select
@@ -117,21 +162,31 @@ export default function AdminEditor({ user }) {
           </select>
         </div>
 
+        {/* Kategori master */}
         <div>
-          <label className="block text-sm font-medium mb-1">Kategori</label>
-          <input
+          <div className="flex justify-between items-center mb-1">
+            <label className="block text-sm font-medium">
+              Kategori (Category / Sub / Detail)
+            </label>
+            <span className="text-[11px] text-slate-500">
+              Jika belum ada, buat dulu di menu <b>Admin &gt; Master Kategori</b>
+            </span>
+          </div>
+          <select
             className="border rounded px-2 py-1 text-sm w-full"
-            value={category}
-            onChange={(e) => setCategory(e.target.value)}
-            placeholder="Contoh: Kredit Konsumtif, Tabungan, dll"
-          />
-          <CategoryChips
-            categories={categories}
-            value={category}
-            onSelect={setCategory}
-          />
+            value={categoryId}
+            onChange={(e) => setCategoryId(e.target.value)}
+          >
+            <option value="">Pilih kategori...</option>
+            {categoryOptions.map((c) => (
+              <option key={c.id} value={c.id}>
+                {c.label}
+              </option>
+            ))}
+          </select>
         </div>
 
+        {/* Judul */}
         <div>
           <label className="block text-sm font-medium mb-1">Judul</label>
           <input
@@ -142,9 +197,38 @@ export default function AdminEditor({ user }) {
           />
         </div>
 
+        {/* Breaking news option */}
+        <div className="border rounded-xl p-3 bg-red-50 flex flex-col gap-2">
+          <label className="inline-flex items-center gap-2 text-sm">
+            <input
+              type="checkbox"
+              className="w-4 h-4"
+              checked={isBreaking}
+              onChange={(e) => setIsBreaking(e.target.checked)}
+            />
+            <span> Tandai sebagai Breaking News</span>
+          </label>
+          {isBreaking && (
+            <div>
+              <label className="block text-xs font-medium mb-1">
+                Judul Breaking News (teks di running banner)
+              </label>
+              <input
+                className="border rounded px-2 py-1 text-xs w-full"
+                value={breakingTitle}
+                onChange={(e) => setBreakingTitle(e.target.value)}
+                placeholder="Contoh: Perubahan limit bjb KGB mulai 1 Jan 2026"
+              />
+            </div>
+          )}
+        </div>
+
+        {/* Blocks */}
         <div>
           <div className="flex items-center justify-between mb-2">
-            <span className="text-sm font-medium">Isi Konten (urutan sesuai input)</span>
+            <span className="text-sm font-medium">
+              Isi Konten (urutan sesuai input)
+            </span>
             <div className="flex gap-2">
               <button
                 type="button"
@@ -229,6 +313,7 @@ export default function AdminEditor({ user }) {
           </div>
         </div>
 
+        {/* Submit */}
         <div>
           <button
             type="submit"

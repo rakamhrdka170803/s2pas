@@ -5,6 +5,7 @@ import (
 	"cc-helper-backend/internal/service"
 	"net/http"
 	"strconv"
+	"strings"
 
 	"github.com/gin-gonic/gin"
 )
@@ -20,19 +21,32 @@ func NewProductHandler(s *service.ProductService) *ProductHandler {
 // ==== DTO ====
 
 type createProductRequest struct {
-	Title    string                `json:"title" binding:"required"`
-	Category string                `json:"category" binding:"required"`
-	Blocks   []models.ContentBlock `json:"blocks" binding:"required"`
+	Title         string                `json:"title" binding:"required"`
+	CategoryID    int64                 `json:"categoryId" binding:"required"`
+	Blocks        []models.ContentBlock `json:"blocks" binding:"required"`
+	IsBreaking    bool                  `json:"isBreaking"`
+	BreakingTitle string                `json:"breakingTitle"`
+}
+
+type createCategoryRequest struct {
+	Kind           string `json:"kind" binding:"required"`         // product / script
+	Category       string `json:"category" binding:"required"`     // level 1
+	SubCategory    string `json:"sub_category" binding:"required"` // level 2
+	DetailCategory string `json:"detail_category"`                 // level 3 (opsional)
 }
 
 // ==== LIST ====
 
 func (h *ProductHandler) ListProducts(c *gin.Context) {
-	// list khusus kind=product
 	q := c.Query("q")
-	category := c.Query("category")
 
-	data, err := h.products.List(models.ContentKindProduct, q, category)
+	var catID *int64
+	if c.Query("categoryId") != "" {
+		id, _ := strconv.ParseInt(c.Query("categoryId"), 10, 64)
+		catID = &id
+	}
+
+	data, err := h.products.List(models.ContentKindProduct, q, catID)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
@@ -41,11 +55,15 @@ func (h *ProductHandler) ListProducts(c *gin.Context) {
 }
 
 func (h *ProductHandler) ListScripts(c *gin.Context) {
-	// list khusus kind=script
 	q := c.Query("q")
-	category := c.Query("category")
 
-	data, err := h.products.List(models.ContentKindScript, q, category)
+	var catID *int64
+	if c.Query("categoryId") != "" {
+		id, _ := strconv.ParseInt(c.Query("categoryId"), 10, 64)
+		catID = &id
+	}
+
+	data, err := h.products.List(models.ContentKindScript, q, catID)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
@@ -53,7 +71,6 @@ func (h *ProductHandler) ListScripts(c *gin.Context) {
 	c.JSON(http.StatusOK, data)
 }
 
-// Untuk kompatibilitas lama: /products (tanpa context) → treat as products
 func (h *ProductHandler) List(c *gin.Context) {
 	h.ListProducts(c)
 }
@@ -90,7 +107,7 @@ func (h *ProductHandler) GetScriptBySlug(c *gin.Context) {
 	c.JSON(http.StatusOK, p)
 }
 
-// ==== CREATE ====
+// ==== CREATE PRODUCT / SCRIPT ====
 
 func (h *ProductHandler) CreateProduct(c *gin.Context) {
 	var body createProductRequest
@@ -98,7 +115,14 @@ func (h *ProductHandler) CreateProduct(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid body"})
 		return
 	}
-	id, slug, err := h.products.Create(models.ContentKindProduct, body.Title, body.Category, body.Blocks)
+	id, slug, err := h.products.Create(
+		models.ContentKindProduct,
+		body.Title,
+		body.CategoryID,
+		body.Blocks,
+		body.IsBreaking,
+		body.BreakingTitle,
+	)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
@@ -112,7 +136,14 @@ func (h *ProductHandler) CreateScript(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid body"})
 		return
 	}
-	id, slug, err := h.products.Create(models.ContentKindScript, body.Title, body.Category, body.Blocks)
+	id, slug, err := h.products.Create(
+		models.ContentKindScript,
+		body.Title,
+		body.CategoryID,
+		body.Blocks,
+		body.IsBreaking,
+		body.BreakingTitle,
+	)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
@@ -120,7 +151,30 @@ func (h *ProductHandler) CreateScript(c *gin.Context) {
 	c.JSON(http.StatusCreated, gin.H{"id": id, "slug": slug})
 }
 
-// ==== CATEGORIES ====
+// ==== CATEGORY MASTER ====
+
+func (h *ProductHandler) CreateCategory(c *gin.Context) {
+	var body createCategoryRequest
+	if err := c.ShouldBindJSON(&body); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid body"})
+		return
+	}
+
+	var kind models.ContentKind
+	switch strings.ToLower(body.Kind) {
+	case "script":
+		kind = models.ContentKindScript
+	default:
+		kind = models.ContentKindProduct
+	}
+
+	id, err := h.products.CreateCategory(kind, body.Category, body.SubCategory, body.DetailCategory)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+	c.JSON(http.StatusCreated, gin.H{"id": id})
+}
 
 func (h *ProductHandler) ListCategories(c *gin.Context) {
 	kindParam := c.Query("kind")
@@ -149,8 +203,9 @@ func (h *ProductHandler) Search(c *gin.Context) {
 		return
 	}
 
-	products, err1 := h.products.List(models.ContentKindProduct, q, "")
-	scripts, err2 := h.products.List(models.ContentKindScript, q, "")
+	// kategori tidak difilter ⇒ kirim nil
+	products, err1 := h.products.List(models.ContentKindProduct, q, nil)
+	scripts, err2 := h.products.List(models.ContentKindScript, q, nil)
 
 	if err1 != nil || err2 != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "search failed"})
@@ -161,4 +216,33 @@ func (h *ProductHandler) Search(c *gin.Context) {
 		"products": products,
 		"scripts":  scripts,
 	})
+}
+
+// ==== BREAKING NEWS ====
+
+func (h *ProductHandler) ListBreakingNews(c *gin.Context) {
+	data, err := h.products.ListActiveBreakingNews()
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed list breaking news"})
+		return
+	}
+	c.JSON(http.StatusOK, data)
+}
+
+func (h *ProductHandler) ListAllBreakingNews(c *gin.Context) {
+	data, err := h.products.ListAllBreakingNews()
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed list breaking news"})
+		return
+	}
+	c.JSON(http.StatusOK, data)
+}
+
+func (h *ProductHandler) DeleteBreakingNews(c *gin.Context) {
+	id, _ := strconv.ParseInt(c.Param("id"), 10, 64)
+	if err := h.products.DeleteBreakingNews(id); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "failed delete breaking news"})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"status": "ok"})
 }

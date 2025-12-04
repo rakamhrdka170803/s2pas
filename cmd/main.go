@@ -25,10 +25,12 @@ func main() {
 
 	userRepo := repository.NewUserRepository(database)
 	productRepo := repository.NewProductRepository(database)
+	categoryRepo := repository.NewCategoryRepository(database)
+	breakingNewsRepo := repository.NewBreakingNewsRepository(database)
 
 	authService := service.NewAuthService(userRepo, cfg.JWTSecret)
 	userService := service.NewUserService(userRepo)
-	productService := service.NewProductService(productRepo)
+	productService := service.NewProductService(productRepo, categoryRepo, breakingNewsRepo)
 
 	authHandler := handler.NewAuthHandler(authService)
 	userHandler := handler.NewUserHandler(userService)
@@ -37,7 +39,6 @@ func main() {
 
 	r := gin.Default()
 
-	// CORS untuk frontend Vite di 5173
 	r.Use(cors.New(cors.Config{
 		AllowOrigins:     []string{"http://localhost:5173"},
 		AllowMethods:     []string{"GET", "POST", "PUT", "DELETE", "OPTIONS"},
@@ -46,7 +47,6 @@ func main() {
 		AllowCredentials: true,
 	}))
 
-	// serve file upload sebagai static
 	r.Static("/static", cfg.UploadDir)
 
 	api := r.Group("/api")
@@ -58,35 +58,39 @@ func main() {
 		{
 			auth.GET("/auth/me", authHandler.Me)
 
-			// admin: user & product/script CRUD
+			// admin
 			admin := auth.Group("/admin")
 			admin.Use(middleware.RequireRole("admin"))
 			{
 				admin.GET("/users", userHandler.List)
 				admin.POST("/users", userHandler.Create)
 
+				// category master
+				admin.POST("/categories", productHandler.CreateCategory)
+
 				// create product / script
 				admin.POST("/products", productHandler.CreateProduct)
 				admin.POST("/scripts", productHandler.CreateScript)
-				// update/delete bisa ditambah nanti
+
+				// breaking news admin
+				admin.GET("/breaking-news", productHandler.ListAllBreakingNews)
+				admin.DELETE("/breaking-news/:id", productHandler.DeleteBreakingNews)
 			}
 
-			// umum (agent & admin) - LIST
+			// umum (agent & admin)
 			auth.GET("/products", productHandler.ListProducts)
 			auth.GET("/scripts", productHandler.ListScripts)
 
-			// umum - DETAIL BY ID (opsional, lebih untuk admin / tooling)
 			auth.GET("/products/:id", productHandler.GetByID)
-
-			// DETAIL BY SLUG (untuk frontend)
 			auth.GET("/products/slug/:slug", productHandler.GetProductBySlug)
 			auth.GET("/scripts/slug/:slug", productHandler.GetScriptBySlug)
 
-			// Kategori per jenis
 			auth.GET("/categories", productHandler.ListCategories)
 
-			// Search (produk kiri, script kanan)
 			auth.GET("/search", productHandler.Search)
+
+			// breaking news untuk agent (ticker)
+			auth.GET("/breaking-news", productHandler.ListBreakingNews)
 
 			// upload gambar
 			auth.POST("/upload", uploadHandler.Upload)
@@ -97,5 +101,4 @@ func main() {
 	if err := r.Run(":8080"); err != nil {
 		log.Fatal(err)
 	}
-
 }

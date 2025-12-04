@@ -12,6 +12,9 @@ import ListPage from "./pages/ListPage";
 import DetailPage from "./pages/DetailPage";
 import SearchPage from "./pages/SearchPage";
 import AdminEditor from "./pages/AdminEditor";
+import AdminCategoriesPage from "./pages/AdminCategoriesPage";
+import AdminBreakingNewsPage from "./pages/AdminBreakingNewsPage";
+import BreakingNewsTicker from "./components/BreakingNewsTicker";
 
 function App() {
   const [user, setUser] = useState(null);
@@ -67,53 +70,58 @@ function MainLayout({ user, setUser }) {
   return (
     <div className="min-h-screen flex flex-col bg-slate-100">
       {/* HEADER */}
-      <header className="h-14 bg-gradient-to-r from-blue-900 via-blue-800 to-sky-500 text-white flex items-center px-4 shadow">
-        <div className="flex items-center gap-2 mr-6">
-          <div className="w-8 h-8 rounded-lg bg-white/10 flex items-center justify-center">
-            <span className="font-bold text-sm tracking-widest">bjb</span>
-          </div>
-          <div className="flex flex-col leading-tight">
-            <span className="text-xs uppercase tracking-[0.2em] text-sky-200">
-              CC Helper
-            </span>
-            <span className="text-xs">Agent Knowledge Portal</span>
-          </div>
-        </div>
-
-        <form
-          onSubmit={onSearchSubmit}
-          className="flex-1 max-w-xl flex gap-2 items-center"
-        >
-          <div className="flex-1 bg-white/10 rounded-full px-3 py-1 flex items-center">
-            <input
-              className="flex-1 bg-transparent text-xs placeholder:text-sky-100 focus:outline-none"
-              placeholder="Cari produk / script…"
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-            />
-          </div>
-          <button
-            type="submit"
-            className="text-xs bg-white/10 hover:bg-white/20 rounded-full px-3 py-1"
-          >
-            Search
-          </button>
-        </form>
-
-        <div className="ml-auto flex items-center gap-3 text-[11px]">
-          <div className="text-right leading-tight">
-            <div className="font-semibold">{user.name}</div>
-            <div className="uppercase tracking-wide text-[10px] text-sky-200">
-              {user.role}
+      <header className="bg-gradient-to-r from-blue-900 via-blue-800 to-sky-500 text-white shadow">
+        <div className="h-14 flex items-center px-4">
+          <div className="flex items-center gap-2 mr-6">
+            <div className="w-8 h-8 rounded-lg bg-white/10 flex items-center justify-center">
+              <span className="font-bold text-sm tracking-widest">bjb</span>
+            </div>
+            <div className="flex flex-col leading-tight">
+              <span className="text-xs uppercase tracking-[0.2em] text-sky-200">
+                CC Helper
+              </span>
+              <span className="text-xs">Agent Knowledge Portal</span>
             </div>
           </div>
-          <button
-            onClick={handleLogout}
-            className="text-xs bg-white/10 hover:bg-white/20 rounded-full px-3 py-1"
+
+          <form
+            onSubmit={onSearchSubmit}
+            className="flex-1 max-w-xl flex gap-2 items-center"
           >
-            Logout
-          </button>
+            <div className="flex-1 bg-white/10 rounded-full px-3 py-1 flex items-center">
+              <input
+                className="flex-1 bg-transparent text-xs placeholder:text-sky-100 focus:outline-none"
+                placeholder="Cari produk / script…"
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+              />
+            </div>
+            <button
+              type="submit"
+              className="text-xs bg-white/10 hover:bg-white/20 rounded-full px-3 py-1"
+            >
+              Search
+            </button>
+          </form>
+
+          <div className="ml-auto flex items-center gap-3 text-[11px]">
+            <div className="text-right leading-tight">
+              <div className="font-semibold">{user.name}</div>
+              <div className="uppercase tracking-wide text-[10px] text-sky-200">
+                {user.role}
+              </div>
+            </div>
+            <button
+              onClick={handleLogout}
+              className="text-xs bg-white/10 hover:bg-white/20 rounded-full px-3 py-1"
+            >
+              Logout
+            </button>
+          </div>
         </div>
+
+        {/* BREAKING NEWS TICKER */}
+        <BreakingNewsTicker />
       </header>
 
       {/* BODY */}
@@ -134,6 +142,16 @@ function MainLayout({ user, setUser }) {
                 icon="⚙️"
                 label="Create Produk / Script"
               />
+              <SideLink
+                to="/admin/categories"
+                icon="📚"
+                label="Master Kategori"
+              />
+              <SideLink
+                to="/admin/breaking-news"
+                icon="🚨"
+                label="Breaking News"
+              />
             </>
           )}
         </nav>
@@ -145,7 +163,12 @@ function MainLayout({ user, setUser }) {
               {location.pathname.startsWith("/products") && "• Daftar Produk"}
               {location.pathname.startsWith("/scripts") && "• Daftar Script"}
               {location.pathname.startsWith("/search") && "• Hasil Pencarian"}
-              {location.pathname.startsWith("/admin") && "• Admin Panel"}
+              {location.pathname.startsWith("/admin/editor") &&
+                "• Admin Panel - Create"}
+              {location.pathname.startsWith("/admin/categories") &&
+                "• Admin Panel - Master Kategori"}
+              {location.pathname.startsWith("/admin/breaking-news") &&
+                "• Admin Panel - Breaking News"}
             </div>
             <div className="bg-white rounded-2xl shadow-sm p-4 min-h-[400px]">
               <Routes>
@@ -166,6 +189,14 @@ function MainLayout({ user, setUser }) {
                 <Route
                   path="/admin/editor"
                   element={<AdminEditor user={user} />}
+                />
+                <Route
+                  path="/admin/categories"
+                  element={<AdminCategoriesPage />}
+                />
+                <Route
+                  path="/admin/breaking-news"
+                  element={<AdminBreakingNewsPage />}
                 />
                 {/* default */}
                 <Route path="*" element={<ListPage kind="product" />} />
