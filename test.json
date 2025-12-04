@@ -1,0 +1,154 @@
+{
+  "info": {
+    "name": "CC Helper Backend API",
+    "_postman_id": "c7b6d9c1-1a11-44e0-bb1a-cchelperapi",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    { "key": "base_url", "value": "http://localhost:8080" },
+    { "key": "admin_token", "value": "" },
+    { "key": "agent_token", "value": "" },
+    { "key": "product_id", "value": "" },
+    { "key": "image_url", "value": "" }
+  ],
+  "item": [
+    {
+      "name": "1. Login Admin",
+      "request": {
+        "method": "POST",
+        "header": [{ "key": "Content-Type", "value": "application/json" }],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"username\": \"admin\",\n  \"password\": \"admin123\"\n}"
+        },
+        "url": { "raw": "{{base_url}}/api/auth/login", "host": ["{{base_url}}"], "path": ["api","auth","login"] }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": ["var json = pm.response.json();", "pm.environment.set(\"admin_token\", json.token);"]
+          }
+        }
+      ]
+    },
+    {
+      "name": "2. Create User (Admin → Agent)",
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "Authorization", "value": "Bearer {{admin_token}}" },
+          { "key": "Content-Type", "value": "application/json" }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"username\": \"agent1\",\n  \"name\": \"Agent Satu\",\n  \"password\": \"agent123\",\n  \"role\": \"agent\"\n}"
+        },
+        "url": { "raw": "{{base_url}}/api/admin/users", "host": ["{{base_url}}"], "path": ["api","admin","users"] }
+      }
+    },
+    {
+      "name": "3. Login Agent",
+      "request": {
+        "method": "POST",
+        "header": [{ "key": "Content-Type", "value": "application/json" }],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"username\": \"agent1\",\n  \"password\": \"agent123\"\n}"
+        },
+        "url": { "raw": "{{base_url}}/api/auth/login", "host": ["{{base_url}}"], "path": ["api","auth","login"] }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": ["var json = pm.response.json();", "pm.environment.set(\"agent_token\", json.token);"]
+          }
+        }
+      ]
+    },
+    {
+      "name": "4. Upload Image",
+      "request": {
+        "method": "POST",
+        "header": [{ "key": "Authorization", "value": "Bearer {{admin_token}}" }],
+        "body": {
+          "mode": "formdata",
+          "formdata": [{ "key": "file", "type": "file", "src": "" }]
+        },
+        "url": { "raw": "{{base_url}}/api/upload", "host": ["{{base_url}}"], "path": ["api","upload"] }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": ["var json = pm.response.json();", "pm.environment.set(\"image_url\", json.url);"]
+          }
+        }
+      ]
+    },
+    {
+      "name": "5. Create Product",
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "Authorization", "value": "Bearer {{admin_token}}" },
+          { "key": "Content-Type", "value": "application/json" }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"title\": \"bjb T-PBB\",\n  \"category\": \"Pembayaran Pajak\",\n  \"blocks\": [\n    { \"type\": \"text\", \"text\": \"Ini deskripsi awal\" },\n    { \"type\": \"image\", \"imageUrl\": \"{{image_url}}\" },\n    { \"type\": \"text\", \"text\": \"Ini deskripsi lanjutan\" }\n  ]\n}"
+        },
+        "url": { "raw": "{{base_url}}/api/admin/products", "host": ["{{base_url}}"], "path": ["api","admin","products"] }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": ["var json = pm.response.json();", "pm.environment.set(\"product_id\", json.id);"]
+          }
+        }
+      ]
+    },
+    {
+      "name": "6. List Products",
+      "request": {
+        "method": "GET",
+        "header": [{ "key": "Authorization", "value": "Bearer {{agent_token}}" }],
+        "url": { "raw": "{{base_url}}/api/products", "host": ["{{base_url}}"], "path": ["api","products"] }
+      }
+    },
+    {
+      "name": "7. Search Products",
+      "request": {
+        "method": "GET",
+        "header": [{ "key": "Authorization", "value": "Bearer {{agent_token}}" }],
+        "url": { "raw": "{{base_url}}/api/products?q=pbb", "host": ["{{base_url}}"], "path": ["api","products"] }
+      }
+    },
+    {
+      "name": "8. Get Product Detail",
+      "request": {
+        "method": "GET",
+        "header": [{ "key": "Authorization", "value": "Bearer {{agent_token}}" }],
+        "url": {
+          "raw": "{{base_url}}/api/products/{{product_id}}",
+          "host": ["{{base_url}}"],
+          "path": ["api","products","{{product_id}}"]
+        }
+      }
+    },
+    {
+      "name": "9. Forbidden Test (Agent Create Product)",
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "Authorization", "value": "Bearer {{agent_token}}" },
+          { "key": "Content-Type", "value": "application/json" }
+        ],
+        "body": { "mode": "raw", "raw": "{ \"title\": \"FORBIDDEN\" }" },
+        "url": { "raw": "{{base_url}}/api/admin/products", "host": ["{{base_url}}"], "path": ["api","admin","products"] }
+      }
+    }
+  ]
+}
