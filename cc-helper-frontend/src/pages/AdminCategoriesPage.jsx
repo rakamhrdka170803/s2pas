@@ -12,6 +12,8 @@ export default function AdminCategoriesPage() {
   const [subCategory, setSubCategory] = useState("");
   const [detailCategory, setDetailCategory] = useState("");
 
+  const [confirmItem, setConfirmItem] = useState(null);
+
   function load() {
     setLoading(true);
     fetchCategories(kind)
@@ -53,10 +55,10 @@ export default function AdminCategoriesPage() {
     }
   }
 
-  async function handleDelete(id) {
-    if (!window.confirm("Yakin hapus kategori ini?")) return;
+  async function handleConfirmDelete(id) {
     try {
       await deleteCategory(id);
+      setConfirmItem(null);
       load();
     } catch (err) {
       alert("Gagal delete: " + err.message);
@@ -99,7 +101,7 @@ export default function AdminCategoriesPage() {
               className="border rounded px-2 py-1 text-xs w-full"
               value={category}
               onChange={(e) => setCategory(e.target.value)}
-              placeholder="Contoh: Kredit Konsumtif"
+              placeholder="Contoh: Kredit"
             />
           </div>
           <div>
@@ -138,9 +140,7 @@ export default function AdminCategoriesPage() {
       {/* List */}
       <div className="bg-white rounded-xl shadow p-3">
         <div className="flex justify-between items-center mb-2 text-sm">
-          <span className="font-semibold">
-            Daftar Kategori ({kind})
-          </span>
+          <span className="font-semibold">Daftar Kategori ({kind})</span>
           {loading && (
             <span className="text-xs text-slate-500">Loading...</span>
           )}
@@ -167,7 +167,7 @@ export default function AdminCategoriesPage() {
                   </td>
                   <td className="border px-2 py-1">
                     <button
-                      onClick={() => handleDelete(c.id)}
+                      onClick={() => setConfirmItem(c)}
                       className="text-[11px] text-red-600 hover:underline"
                     >
                       Hapus
@@ -189,6 +189,48 @@ export default function AdminCategoriesPage() {
           </table>
         </div>
       </div>
+
+      {/* MODAL DELETE CATEGORY */}
+      {confirmItem && (
+        <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50">
+          <div className="bg-white rounded-2xl shadow-lg p-4 w-full max-w-sm text-xs">
+            <h2 className="text-sm font-semibold mb-2">
+              Hapus Kategori?
+            </h2>
+            <p className="text-slate-600 mb-3">
+              Anda akan menghapus kategori:
+              <br />
+              <span className="font-semibold">
+                {confirmItem.category} /{" "}
+                {confirmItem.sub_category || confirmItem.subCategory}
+                {confirmItem.detail_category || confirmItem.detailCategory
+                  ? " / " +
+                    (confirmItem.detail_category ||
+                      confirmItem.detailCategory)
+                  : ""}
+              </span>
+            </p>
+            <p className="text-[11px] text-slate-500 mb-4">
+              Jika kategori masih digunakan oleh produk/script, database bisa
+              menolak penghapusan (constraint foreign key).
+            </p>
+            <div className="flex justify-end gap-2">
+              <button
+                onClick={() => setConfirmItem(null)}
+                className="px-3 py-1 rounded border border-slate-300 hover:bg-slate-50"
+              >
+                Batal
+              </button>
+              <button
+                onClick={() => handleConfirmDelete(confirmItem.id)}
+                className="px-3 py-1 rounded bg-red-600 text-white hover:bg-red-700"
+              >
+                Hapus
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

@@ -32,7 +32,11 @@ export async function login(username, password) {
   });
   if (!res.ok) throw new Error("Login failed");
   const data = await res.json();
+
+  // penting: simpan token ke memory + localStorage (buat auto login setelah reload)
   setToken(data.token);
+  localStorage.setItem("cc-helper-token", data.token);
+
   return data;
 }
 
@@ -133,6 +137,22 @@ export async function createContent(
 }
 
 /**
+ * Delete product (admin)
+ * DELETE /admin/products/:id
+ */
+export async function deleteProduct(id) {
+  const res = await fetch(`${API_BASE}/admin/products/${id}`, {
+    method: "DELETE",
+    headers: authHeaders(),
+  });
+  if (!res.ok) {
+    const text = await res.text();
+    throw new Error(text || "Delete product failed");
+  }
+  return res.json();
+}
+
+/**
  * Master kategori (admin)
  * POST /admin/categories
  */
@@ -148,8 +168,8 @@ export async function createCategoryMaster({
     body: JSON.stringify({
       kind,
       category,
-      sub_category: subCategory,       // <-- snake_case
-      detail_category: detailCategory, // <-- snake_case
+      sub_category: subCategory,       // snake_case
+      detail_category: detailCategory, // snake_case
     }),
   });
 
@@ -159,7 +179,6 @@ export async function createCategoryMaster({
   }
   return res.json();
 }
-
 
 export async function deleteCategory(id) {
   const res = await fetch(`${API_BASE}/admin/categories/${id}`, {

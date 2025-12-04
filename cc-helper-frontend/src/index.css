@@ -10,17 +10,22 @@ input, textarea, select, button {
   font-family: inherit;
 }
 
+/* Marquee untuk Breaking News */
 @keyframes marquee {
   0% {
-    transform: translateX(0);
+    /* mulai dari luar kanan layar */
+    transform: translateX(100%);
   }
   100% {
-    transform: translateX(-50%);
+    /* geser sampai keluar kiri */
+    transform: translateX(-100%);
   }
 }
 
 .animate-marquee {
   display: inline-flex;
   white-space: nowrap;
-  animation: marquee 15s linear infinite;
+  /* supaya selalu cukup lebar untuk animasi penuh */
+  min-width: 100%;
+  animation: marquee 18s linear infinite;
 }

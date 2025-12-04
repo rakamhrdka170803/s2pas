@@ -47,6 +47,17 @@ func buildCategoryDisplay(c *models.Category) string {
 	return fmt.Sprintf("%s / %s", c.Category, c.SubCategory)
 }
 
+// helper kecil buat normalisasi label (Kredit, Promo, dll)
+func normalizeLabel(s string) string {
+	s = strings.TrimSpace(s)
+	if s == "" {
+		return s
+	}
+	s = strings.ToLower(s)
+	// kapitalisasi huruf pertama saja
+	return strings.ToUpper(s[:1]) + s[1:]
+}
+
 // 👇 helper: generate slug unik
 func (s *ProductService) generateUniqueSlug(kind models.ContentKind, title string) string {
 	base := slugify(title)
@@ -96,19 +107,51 @@ func (s *ProductService) GetBySlug(kind models.ContentKind, slug string) (*model
 
 // CreateCategory: admin input master category
 func (s *ProductService) CreateCategory(kind models.ContentKind, cat, sub, detail string) (int64, error) {
+	// normalisasi input
+	catTrim := normalizeLabel(cat)
+	subTrim := normalizeLabel(sub)
+	detailTrim := strings.TrimSpace(detail)
+
 	var detailPtr *string
-	if strings.TrimSpace(detail) != "" {
-		d := strings.TrimSpace(detail)
+	if detailTrim != "" {
+		d := detailTrim
 		detailPtr = &d
 	}
 
-	c := &models.Category{
+	// 1) Cek dulu apakah kombinasi (kind, category, sub_category, detail_category)
+	//    sudah pernah ada. Kalau sudah, balikin ERROR supaya front-end tahu.
+	existing, err := s.categoryRepo.ListByKind(kind)
+	if err != nil {
+		return 0, err
+	}
+
+	for _, c := range existing {
+		sameCategory := strings.EqualFold(c.Category, catTrim)
+		sameSub := strings.EqualFold(c.SubCategory, subTrim)
+
+		var sameDetail bool
+		if c.DetailCategory == nil && detailPtr == nil {
+			sameDetail = true
+		} else if c.DetailCategory != nil && detailPtr != nil {
+			sameDetail = strings.EqualFold(*c.DetailCategory, *detailPtr)
+		} else {
+			sameDetail = false
+		}
+
+		if sameCategory && sameSub && sameDetail {
+			// kombinasi sudah ada → tolak
+			return 0, fmt.Errorf("kategori sudah ada (kombinasi sama)")
+		}
+	}
+
+	// 2) Kalau belum ada, baru INSERT kategori baru
+	newCat := &models.Category{
 		Kind:           kind,
-		Category:       strings.TrimSpace(cat),
-		SubCategory:    strings.TrimSpace(sub),
+		Category:       catTrim,
+		SubCategory:    subTrim,
 		DetailCategory: detailPtr,
 	}
-	return s.categoryRepo.Create(c)
+	return s.categoryRepo.Create(newCat)
 }
 
 // ==== Create Product / Script ====
@@ -173,6 +216,12 @@ func (s *ProductService) Update(p *models.Product) error {
 
 func (s *ProductService) Delete(id int64) error {
 	return s.productRepo.Delete(id)
+}
+
+// ==== Category Delete ====
+
+func (s *ProductService) DeleteCategory(id int64) error {
+	return s.categoryRepo.Delete(id)
 }
 
 // ==== Breaking News ====

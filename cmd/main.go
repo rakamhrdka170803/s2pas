@@ -67,10 +67,14 @@ func main() {
 
 				// category master
 				admin.POST("/categories", productHandler.CreateCategory)
+				admin.DELETE("/categories/:id", productHandler.DeleteCategory)
 
 				// create product / script
 				admin.POST("/products", productHandler.CreateProduct)
 				admin.POST("/scripts", productHandler.CreateScript)
+
+				// ⬇⬇⬇ baru: delete product/script by ID
+				admin.DELETE("/products/:id", productHandler.DeleteProduct)
 
 				// breaking news admin
 				admin.GET("/breaking-news", productHandler.ListAllBreakingNews)

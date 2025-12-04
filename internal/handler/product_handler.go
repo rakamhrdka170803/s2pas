@@ -194,6 +194,26 @@ func (h *ProductHandler) ListCategories(c *gin.Context) {
 	c.JSON(http.StatusOK, cats)
 }
 
+func (h *ProductHandler) DeleteCategory(c *gin.Context) {
+	id, _ := strconv.ParseInt(c.Param("id"), 10, 64)
+	if err := h.products.DeleteCategory(id); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"status": "ok"})
+}
+
+// ==== DELETE PRODUCT (admin) ====
+
+func (h *ProductHandler) DeleteProduct(c *gin.Context) {
+	id, _ := strconv.ParseInt(c.Param("id"), 10, 64)
+	if err := h.products.Delete(id); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"status": "ok"})
+}
+
 // ==== SEARCH (Produk kiri, Script kanan) ====
 
 func (h *ProductHandler) Search(c *gin.Context) {
