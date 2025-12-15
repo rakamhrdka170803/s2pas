@@ -23,19 +23,27 @@ func main() {
 		log.Fatalf("failed to create upload dir: %v", err)
 	}
 
+	// ===== REPO =====
 	userRepo := repository.NewUserRepository(database)
 	productRepo := repository.NewProductRepository(database)
 	categoryRepo := repository.NewCategoryRepository(database)
 	breakingNewsRepo := repository.NewBreakingNewsRepository(database)
+	s2NodeRepo := repository.NewS2NodeRepository(database)
 
+	// ===== SERVICE =====
 	authService := service.NewAuthService(userRepo, cfg.JWTSecret)
 	userService := service.NewUserService(userRepo)
 	productService := service.NewProductService(productRepo, categoryRepo, breakingNewsRepo)
+	categoryService := service.NewCategoryService(categoryRepo)
+	s2Service := service.NewS2Service(s2NodeRepo, productRepo)
 
+	// ===== HANDLER =====
 	authHandler := handler.NewAuthHandler(authService)
 	userHandler := handler.NewUserHandler(userService)
 	productHandler := handler.NewProductHandler(productService)
+	categoryHandler := handler.NewCategoryHandler(categoryService)
 	uploadHandler := handler.NewUploadHandler(cfg.UploadDir, cfg.BaseURL)
+	s2Handler := handler.NewS2Handler(s2Service)
 
 	r := gin.Default()
 
@@ -58,46 +66,57 @@ func main() {
 		{
 			auth.GET("/auth/me", authHandler.Me)
 
-			// admin
+			// ===== ADMIN =====
 			admin := auth.Group("/admin")
 			admin.Use(middleware.RequireRole("admin"))
 			{
 				admin.GET("/users", userHandler.List)
 				admin.POST("/users", userHandler.Create)
 
-				// category master
-				admin.POST("/categories", productHandler.CreateCategory)
-				admin.DELETE("/categories/:id", productHandler.DeleteCategory)
+				// Categories tree
+				admin.POST("/categories", categoryHandler.Create)
+				admin.DELETE("/categories/:id", categoryHandler.Delete)
 
-				// create product / script
+				// Products / Scripts
 				admin.POST("/products", productHandler.CreateProduct)
+				admin.PUT("/products/:id", productHandler.UpdateProduct)
+				admin.DELETE("/products/:id", productHandler.DeleteContent)
+
 				admin.POST("/scripts", productHandler.CreateScript)
+				admin.PUT("/scripts/:id", productHandler.UpdateScript)
+				admin.DELETE("/scripts/:id", productHandler.DeleteContent)
 
-				// ⬇⬇⬇ baru: delete product/script by ID
-				admin.DELETE("/products/:id", productHandler.DeleteProduct)
-
-				// breaking news admin
+				// Breaking news admin
 				admin.GET("/breaking-news", productHandler.ListAllBreakingNews)
 				admin.DELETE("/breaking-news/:id", productHandler.DeleteBreakingNews)
+
+				// S2PASS ADMIN
+				admin.POST("/s2pass/nodes", s2Handler.CreateNode)
+				admin.PUT("/s2pass/nodes/:id", s2Handler.UpdateNode)
+				admin.DELETE("/s2pass/nodes/:id", s2Handler.DeleteNode)
 			}
 
-			// umum (agent & admin)
+			// ===== AGENT =====
 			auth.GET("/products", productHandler.ListProducts)
 			auth.GET("/scripts", productHandler.ListScripts)
 
-			auth.GET("/products/:id", productHandler.GetByID)
 			auth.GET("/products/slug/:slug", productHandler.GetProductBySlug)
 			auth.GET("/scripts/slug/:slug", productHandler.GetScriptBySlug)
 
-			auth.GET("/categories", productHandler.ListCategories)
+			// categories list by parent + path helper
+			auth.GET("/categories", categoryHandler.List)
+			auth.GET("/categories/path/:id", categoryHandler.GetPath)
 
 			auth.GET("/search", productHandler.Search)
 
-			// breaking news untuk agent (ticker)
+			// Breaking news
 			auth.GET("/breaking-news", productHandler.ListBreakingNews)
 
-			// upload gambar
+			// Upload
 			auth.POST("/upload", uploadHandler.Upload)
+
+			// S2PASS agent
+			auth.GET("/s2pass/nodes", s2Handler.ListNodes)
 		}
 	}
 

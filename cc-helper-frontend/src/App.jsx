@@ -6,7 +6,9 @@ import {
   useLocation,
   useNavigate,
 } from "react-router-dom";
+
 import { fetchMe, setToken } from "./api";
+
 import LoginPage from "./pages/LoginPage";
 import ListPage from "./pages/ListPage";
 import DetailPage from "./pages/DetailPage";
@@ -15,6 +17,10 @@ import AdminEditor from "./pages/AdminEditor";
 import AdminCategoriesPage from "./pages/AdminCategoriesPage";
 import AdminBreakingNewsPage from "./pages/AdminBreakingNewsPage";
 import BreakingNewsTicker from "./components/BreakingNewsTicker";
+
+// ✅ S2PASS
+import S2PassPage from "./pages/S2PassPage";
+import AdminS2PassPage from "./pages/AdminS2PassPage"; // ✅ TAMBAHAN
 
 function App() {
   const [user, setUser] = useState(null);
@@ -34,7 +40,6 @@ function App() {
   }, []);
 
   if (!loaded) return null;
-
   if (!user) return <LoginPage onLogin={setUser} />;
 
   return <MainLayout user={user} setUser={setUser} />;
@@ -69,7 +74,7 @@ function MainLayout({ user, setUser }) {
 
   return (
     <div className="min-h-screen flex flex-col bg-slate-100">
-      {/* HEADER */}
+      {/* ================= HEADER ================= */}
       <header className="bg-gradient-to-r from-blue-900 via-blue-800 to-sky-500 text-white shadow">
         <div className="h-14 flex items-center px-4">
           <div className="flex items-center gap-2 mr-6">
@@ -120,15 +125,16 @@ function MainLayout({ user, setUser }) {
           </div>
         </div>
 
-        {/* BREAKING NEWS TICKER */}
         <BreakingNewsTicker />
       </header>
 
-      {/* BODY */}
+      {/* ================= BODY ================= */}
       <div className="flex flex-1 overflow-hidden">
-        {/* SIDEBAR */}
+        {/* ========== SIDEBAR ========== */}
         <nav className="w-56 bg-blue-900/90 text-sky-100 border-r border-blue-900/60 flex flex-col py-4 px-3">
           <NavSection title="Navigasi" />
+
+          <SideLink to="/s2pass" icon="▶️" label="S2PASS Call Guide" />
           <SideLink to="/products" icon="📦" label="List Produk" />
           <SideLink to="/scripts" icon="🗒️" label="List Script" />
           <SideLink to="/search?q=" icon="🔍" label="Search Cepat" />
@@ -137,6 +143,7 @@ function MainLayout({ user, setUser }) {
             <>
               <div className="mt-4 mb-1 h-px bg-blue-700/70" />
               <NavSection title="Admin" />
+
               <SideLink
                 to="/admin/editor"
                 icon="⚙️"
@@ -152,31 +159,40 @@ function MainLayout({ user, setUser }) {
                 icon="🚨"
                 label="Breaking News"
               />
+
+              {/* ✅ MENU ADMIN S2PASS */}
+              <SideLink
+                to="/admin/s2pass"
+                icon="🧭"
+                label="S2PASS Navigator"
+              />
             </>
           )}
         </nav>
 
-        {/* MAIN CONTENT */}
+        {/* ========== MAIN CONTENT ========== */}
         <main className="flex-1 p-4 overflow-auto">
           <div className="max-w-6xl mx-auto">
-            <div className="mb-3 text-[11px] text-slate-500">
-              {location.pathname.startsWith("/products") && "• Daftar Produk"}
-              {location.pathname.startsWith("/scripts") && "• Daftar Script"}
-              {location.pathname.startsWith("/search") && "• Hasil Pencarian"}
-              {location.pathname.startsWith("/admin/editor") &&
-                "• Admin Panel - Create"}
-              {location.pathname.startsWith("/admin/categories") &&
-                "• Admin Panel - Master Kategori"}
-              {location.pathname.startsWith("/admin/breaking-news") &&
-                "• Admin Panel - Breaking News"}
-            </div>
             <div className="bg-white rounded-2xl shadow-sm p-4 min-h-[400px]">
               <Routes>
+                {/* ✅ S2PASS */}
+                <Route path="/s2pass" element={<S2PassPage />} />
+
+                {/* ✅ ADMIN S2PASS */}
+                <Route
+                  path="/admin/s2pass"
+                  element={<AdminS2PassPage />}
+                />
+
                 <Route
                   path="/products"
                   element={<ListPage kind="product" />}
                 />
-                <Route path="/scripts" element={<ListPage kind="script" />} />
+                <Route
+                  path="/scripts"
+                  element={<ListPage kind="script" />}
+                />
+
                 <Route
                   path="/product/:slug"
                   element={<DetailPage kind="product" />}
@@ -185,7 +201,9 @@ function MainLayout({ user, setUser }) {
                   path="/script/:slug"
                   element={<DetailPage kind="script" />}
                 />
+
                 <Route path="/search" element={<SearchPage />} />
+
                 <Route
                   path="/admin/editor"
                   element={<AdminEditor user={user} />}
@@ -198,8 +216,9 @@ function MainLayout({ user, setUser }) {
                   path="/admin/breaking-news"
                   element={<AdminBreakingNewsPage />}
                 />
-                {/* default */}
-                <Route path="*" element={<ListPage kind="product" />} />
+
+                {/* ✅ DEFAULT */}
+                <Route path="*" element={<S2PassPage />} />
               </Routes>
             </div>
           </div>
@@ -219,6 +238,7 @@ function NavSection({ title }) {
 
 function SideLink({ to, icon, label }) {
   const location = useLocation();
+
   const active =
     location.pathname === to ||
     (to.startsWith("/search") && location.pathname === "/search") ||

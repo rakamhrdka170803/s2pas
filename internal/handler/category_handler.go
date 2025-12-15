@@ -17,30 +17,61 @@ func NewCategoryHandler(s *service.CategoryService) *CategoryHandler {
 	return &CategoryHandler{svc: s}
 }
 
-type categoryRequest struct {
-	Kind           string  `json:"kind" binding:"required"` // "product"/"script"
-	Category       string  `json:"category" binding:"required"`
-	SubCategory    string  `json:"sub_category" binding:"required"` // <-- ganti
-	DetailCategory *string `json:"detail_category"`                 // <-- ganti
+type createCategoryRequest struct {
+	Kind     string `json:"kind" binding:"required"` // product/script
+	Name     string `json:"name" binding:"required"`
+	ParentID *int64 `json:"parent_id"`
 }
 
+// GET /categories?kind=product&parentId=...
+func (h *CategoryHandler) List(c *gin.Context) {
+	kindParam := c.Query("kind")
+	kind := models.ContentKindProduct
+	if kindParam == "script" {
+		kind = models.ContentKindScript
+	}
+
+	var parentID *int64
+	if p := c.Query("parentId"); p != "" {
+		id, err := strconv.ParseInt(p, 10, 64)
+		if err == nil {
+			parentID = &id
+		}
+	}
+
+	list, err := h.svc.ListByParent(kind, parentID)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+	c.JSON(http.StatusOK, list)
+}
+
+// GET /categories/path/:id  -> "A / B / C"
+func (h *CategoryHandler) GetPath(c *gin.Context) {
+	id, _ := strconv.ParseInt(c.Param("id"), 10, 64)
+	path, err := h.svc.BuildPathString(id)
+	if err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "not found"})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"path": path})
+}
+
+// POST /admin/categories
 func (h *CategoryHandler) Create(c *gin.Context) {
-	var body categoryRequest
+	var body createCategoryRequest
 	if err := c.ShouldBindJSON(&body); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid body"})
 		return
 	}
-	k := models.ContentKindProduct
+
+	kind := models.ContentKindProduct
 	if body.Kind == "script" {
-		k = models.ContentKindScript
+		kind = models.ContentKindScript
 	}
 
-	id, err := h.svc.Create(&models.Category{
-		Kind:           k,
-		Category:       body.Category,
-		SubCategory:    body.SubCategory,
-		DetailCategory: body.DetailCategory,
-	})
+	id, err := h.svc.Create(kind, body.Name, body.ParentID)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
@@ -48,31 +79,7 @@ func (h *CategoryHandler) Create(c *gin.Context) {
 	c.JSON(http.StatusCreated, gin.H{"id": id})
 }
 
-func (h *CategoryHandler) Update(c *gin.Context) {
-	id, _ := strconv.ParseInt(c.Param("id"), 10, 64)
-	var body categoryRequest
-	if err := c.ShouldBindJSON(&body); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid body"})
-		return
-	}
-
-	existing, err := h.svc.GetByID(id)
-	if err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": "not found"})
-		return
-	}
-
-	existing.Category = body.Category
-	existing.SubCategory = body.SubCategory
-	existing.DetailCategory = body.DetailCategory
-
-	if err := h.svc.Update(existing); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
-		return
-	}
-	c.JSON(http.StatusOK, gin.H{"ok": true})
-}
-
+// DELETE /admin/categories/:id
 func (h *CategoryHandler) Delete(c *gin.Context) {
 	id, _ := strconv.ParseInt(c.Param("id"), 10, 64)
 	if err := h.svc.Delete(id); err != nil {
@@ -80,21 +87,4 @@ func (h *CategoryHandler) Delete(c *gin.Context) {
 		return
 	}
 	c.JSON(http.StatusOK, gin.H{"ok": true})
-}
-
-func (h *CategoryHandler) List(c *gin.Context) {
-	kindParam := c.Query("kind")
-	var kind models.ContentKind
-	switch kindParam {
-	case "script":
-		kind = models.ContentKindScript
-	default:
-		kind = models.ContentKindProduct
-	}
-	list, err := h.svc.List(kind)
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
-		return
-	}
-	c.JSON(http.StatusOK, list)
 }
