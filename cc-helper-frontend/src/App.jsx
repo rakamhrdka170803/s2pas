@@ -176,7 +176,7 @@ function MainLayout({ user, setUser }) {
             <div className="bg-white rounded-2xl shadow-sm p-4 min-h-[400px]">
               <Routes>
                 {/* ✅ S2PASS */}
-                <Route path="/s2pass" element={<S2PassPage />} />
+                <Route path="/s2pass" element={<S2PassPage user={user}/>} />
 
                 {/* ✅ ADMIN S2PASS */}
                 <Route
